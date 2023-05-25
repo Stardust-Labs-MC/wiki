@@ -1,0 +1,27 @@
+name: Remove Issue from Project on Close
+on:
+  issues:
+    types:
+      - closed
+
+jobs:
+  remove_from_project:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Remove Issue from Project
+        run: |
+          # Get the project ID of the issue
+          PROJECT_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}" | jq --raw-output '.project_card.project_id')
+
+          if [ -z "$PROJECT_ID" ]; then
+            echo "No project found for the closed issue"
+            exit 0
+          fi
+
+          # Remove the issue from the project
+          API_URL="https://api.github.com/projects/columns/cards/${PROJECT_ID}"
+          curl -s -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL"
