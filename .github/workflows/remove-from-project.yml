@@ -1,45 +1,26 @@
-name: Remove from Project
+name: Remove issue from project when it's closed
 on:
-  pull_request:
+  issues:
     types:
       - closed
 
 jobs:
   remove_from_project:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Generate token
-        id: generate_token
-        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up gh CLI
+        uses: actions/setup-gh@v0.2.0
         with:
-          app_id: ${{ secrets.APP_ID }}
-          private_key: ${{ secrets.APP_PEM }}
+          gh_version: '1.9.0'  # Replace with the desired version of gh
 
-      - name: Get project data
-        env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
-          ORGANIZATION: Stardust-Labs-MC
-          PROJECT_NUMBER: 1
+      - name: Remove issue from project
         run: |
-          gh api graphql -f query='
-            query($org: String!, $number: Int!) {
-              organization(login: $org){
-                projectV2(number: $number) {
-                  id
-                }
-              }
-            }' -f org=$ORGANIZATION -F number=$PROJECT_NUMBER > project_data.json
-
-          echo 'PROJECT_ID='$(jq '.data.organization.projectV2.id' project_data.json) >> $GITHUB_ENV
-
-      - name: Remove PR from project
-        env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
-          PR_ID: ${{ github.event.pull_request.node_id }}
-        run: |
-          gh api graphql -f query='
-            mutation($project: ID!, $pr: ID!) {
-              removeProjectV2Item(input: {projectId: $project, itemId: $pr}) {
-                clientMutationId
-              }
-            }' -f project=$PROJECT_ID -f pr=$PR_ID --silent
+          # Extract issue number from event payload
+          ISSUE_NUMBER=$(jq --raw-output .issue.number $GITHUB_EVENT_PATH)
+          
+          # Remove issue from the project using GitHub CLI
+          gh project card delete --id $ISSUE_NUMBER --confirm
