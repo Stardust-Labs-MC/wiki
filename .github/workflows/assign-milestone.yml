@@ -19,10 +19,9 @@ jobs:
           ISSUE_LABEL=$(echo "$ISSUE_LABEL" | awk '{$1=$1};1')
 
           # Get the milestone number based on the label
-          API_URL="https://api.github.com/repos/${{ github.repository }}/milestones"
-          MILESTONE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL" | jq --arg label "$ISSUE_LABEL" -r '.[] | select(.title == $label) | .number')
+          MILESTONE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/milestones" | jq --arg label "$ISSUE_LABEL" '.[] | select(.title == $label) | .number')
 
-          if [[ -z "$MILESTONE" ]]; then
+          if [ -z "$MILESTONE" ]; then
             echo "No matching milestone found for label: $ISSUE_LABEL"
             exit 0
           fi
