@@ -14,13 +14,9 @@ jobs:
 
       - name: Remove Issue from Project
         run: |
-          # Get the project ID of the issue
-          PROJECT_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}" | jq --raw-output '.project_card.project_id')
-
-          if [ -z "$PROJECT_ID" ]; then
-            echo "No project found for the closed issue"
-            exit 0
-          fi
+          # Get the project ID of the specified project
+          OWNER="Stardust-Labs-MC"
+          PROJECT_ID=1
 
           # Remove the issue from the project
           API_URL="https://api.github.com/projects/columns/cards/${PROJECT_ID}"
