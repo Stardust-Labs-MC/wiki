@@ -1,27 +1,54 @@
-name: Add Reopened Issue to Project
+name: Add to Project
 on:
-  issues:
+  pull_request:
     types:
-      - reopened
+      - ready_for_review
 
 jobs:
   add_to_project:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Get Project ID
-        run: |
-          PROJECT_URL="https://api.github.com/orgs/Stardust-Labs-MC/projects/1"
-          PROJECT_RESPONSE=$(curl -s -H "Accept: application/vnd.github.inertia-preview+json" "$PROJECT_URL")
-          PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq --raw-output '.id')
-          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PEM }}
 
-      - name: Add Issue to Project
+      - name: Get project data
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PROJECT_ID: ${{ env.PROJECT_ID }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          ORGANIZATION: Stardust-Labs-MC
+          PROJECT_NUMBER: 1
         run: |
-          API_URL="https://api.github.com/projects/$PROJECT_ID/columns/cards"
-          ISSUE_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER"
-          curl -s -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -d "{\"content_id\": $ISSUE_NUMBER, \"content_type\": \"Issue\", \"note\": \"Reopened issue\", \"url\": \"$ISSUE_URL\"}" "$API_URL"
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              organization(login: $org){
+                projectV2(number: $number) {
+                  id
+                  fields(first:20) {
+                    nodes {
+                      ... on ProjectV2Field {
+                        id
+                        name
+                      }
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }' -f org=$ORGANIZATION -F number=$PROJECT_NUMBER > project_data.json
+
+          echo 'PROJECT_ID='$(jq '.data.organization.projectV2.id' project_data.json) >> $GITHUB_ENV
+
+      - name: Add PR to project
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          PR_ID: ${{ github.event.pull_request.node
