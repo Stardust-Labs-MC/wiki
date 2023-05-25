@@ -18,20 +18,22 @@ jobs:
           OWNER="Stardust-Labs-MC"
           PROJECT_NUMBER=1
           PROJECT_URL="https://api.github.com/repos/$OWNER/${{ github.repository }}/projects/$PROJECT_NUMBER"
-          PROJECT_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$PROJECT_URL" | jq --raw-output '.id')
+          PROJECT_RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$PROJECT_URL")
+          PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq --raw-output '.id')
 
           if [ -z "$PROJECT_ID" ]; then
             echo "Project not found: $OWNER/${{ github.repository }}/$PROJECT_NUMBER"
-            exit 0
+            exit 1
           fi
 
           # Get the column ID of the "Todo" column in the project
           COLUMN_URL="https://api.github.com/projects/$PROJECT_ID/columns"
-          COLUMN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$COLUMN_URL" | jq --arg column_name "Todo" '.[] | select(.name == $column_name) | .id')
+          COLUMN_RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$COLUMN_URL")
+          COLUMN_ID=$(echo "$COLUMN_RESPONSE" | jq --arg column_name "Todo" '.[] | select(.name == $column_name) | .id')
 
           if [ -z "$COLUMN_ID" ]; then
             echo "Column not found: Todo"
-            exit 0
+            exit 1
           fi
 
           # Add the issue to the project column
