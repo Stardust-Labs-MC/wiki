@@ -14,12 +14,14 @@ jobs:
 
       - name: Add Issue to Project
         run: |
-          # Get the project ID of the "Wiki" project
-          PROJECT_URL="https://api.github.com/repos/${{ github.repository }}/projects"
-          PROJECT_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$PROJECT_URL" | jq --arg project_name "Wiki" '.[] | select(.name == $project_name) | .id')
+          # Get the project ID of the specified project
+          OWNER="Stardust-Labs-MC"
+          PROJECT_NUMBER=1
+          PROJECT_URL="https://api.github.com/repos/$OWNER/${{ github.repository }}/projects/$PROJECT_NUMBER"
+          PROJECT_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$PROJECT_URL" | jq --raw-output '.id')
 
           if [ -z "$PROJECT_ID" ]; then
-            echo "Project not found: Wiki"
+            echo "Project not found: $OWNER/${{ github.repository }}/$PROJECT_NUMBER"
             exit 0
           fi
 
