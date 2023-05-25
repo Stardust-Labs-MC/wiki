@@ -23,11 +23,11 @@ jobs:
               labels: require('./labels.txt').map(l => l.name),
               milestones: require('./milestones.txt').map(m => m.title)
             }
-            for label in env.labels; do
-              for milestone in env.milestones; do
-                if label == milestone; then
-                  gh api -X patch '/repos/OWNER/REPO/issues/{GITHUB_ISSUE_ID}' -f '{"milestone": "'"$milestone"'"}'
-                fi
-              done
-            done
           "
+          for label in env.labels; do
+            for milestone in env.milestones; do
+              if label == milestone; then
+                gh api -X patch '/repos/OWNER/REPO/issues/{GITHUB_ISSUE_ID}' -f '{"milestone": "'"$milestone"'"}'
+              fi
+            done
+          done
