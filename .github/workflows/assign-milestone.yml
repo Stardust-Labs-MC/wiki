@@ -9,7 +9,7 @@ jobs:
 
     - name: Get labels
       run: |
-        echo "::set-output name=labels::\(gh api \-q "/repos/Stardust-Labs-MC/wiki/issues/</span>{GITHUB_ISSUE_ID}/labels" | jq -r '.[].name')"
+        echo "::set-output name=labels::\(gh api \-q "/repos/Stardust-Labs-MC/wiki/issues/{GITHUB_ISSUE_ID}/labels" | jq -r '.[].name')"
 
     - name: Get milestones
       run: |
