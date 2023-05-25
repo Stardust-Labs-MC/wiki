@@ -8,30 +8,24 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Assign Milestone
         run: |
           # Get the issue label
           ISSUE_LABEL=$(jq --raw-output .issue.labels[0].name "$GITHUB_EVENT_PATH")
 
-          # Set the milestone based on the label
-          case "$ISSUE_LABEL" in
-            "Label1")
-              MILESTONE="Milestone1"
-              ;;
-            "Label2")
-              MILESTONE="Milestone2"
-              ;;
-            # Add more label-milestone mappings as needed
-
-            # If no label-matching condition is found, exit without assigning a milestone
-            *)
-              echo "No matching milestone found for label: $ISSUE_LABEL"
-              exit 0
-              ;;
-          esac
+          # Trim leading and trailing whitespace from the label
+          ISSUE_LABEL=$(echo "$ISSUE_LABEL" | awk '{$1=$1};1')
 
           # Assign the milestone to the issue
+          API_URL="https://api.github.com/repos/${{ github.repository }}/milestones"
+          MILESTONE=$(curl -s -X GET -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL" | jq --arg label "$ISSUE_LABEL" -r '.[] | select(.title == $label) | .number')
+
+          if [[ -z "$MILESTONE" ]]; then
+            echo "No matching milestone found for label: $ISSUE_LABEL"
+            exit 0
+          fi
+
           API_URL="https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}"
-          curl -X PATCH -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" -d '{"milestone": "'"$MILESTONE"'"}' "$API_URL"
+          curl -s -X PATCH -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" -d "{\"milestone\": $MILESTONE}" "$API_URL"
