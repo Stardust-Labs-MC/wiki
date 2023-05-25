@@ -1,0 +1,38 @@
+name: Add Issue to Project on Reopen
+on:
+  issues:
+    types:
+      - reopened
+
+jobs:
+  add_to_project:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Add Issue to Project
+        run: |
+          # Get the project ID of the "Wiki" project
+          PROJECT_URL="https://api.github.com/repos/${{ github.repository }}/projects"
+          PROJECT_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$PROJECT_URL" | jq --arg project_name "Wiki" '.[] | select(.name == $project_name) | .id')
+
+          if [ -z "$PROJECT_ID" ]; then
+            echo "Project not found: Wiki"
+            exit 0
+          fi
+
+          # Get the column ID of the "Todo" column in the project
+          COLUMN_URL="https://api.github.com/projects/$PROJECT_ID/columns"
+          COLUMN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$COLUMN_URL" | jq --arg column_name "Todo" '.[] | select(.name == $column_name) | .id')
+
+          if [ -z "$COLUMN_ID" ]; then
+            echo "Column not found: Todo"
+            exit 0
+          fi
+
+          # Add the issue to the project column
+          API_URL="https://api.github.com/projects/columns/$COLUMN_ID/cards"
+          ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
+          curl -s -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" -d "{\"content_id\": $ISSUE_NUMBER, \"content_type\": \"Issue\"}" "$API_URL"
