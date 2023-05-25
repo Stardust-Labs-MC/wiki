@@ -1,4 +1,4 @@
-name: Remove Issue from Project on Close
+name: Remove Closed Issue from Project
 on:
   issues:
     types:
@@ -9,34 +9,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      - name: Remove Issue from Project
+      - name: Get Project ID
         run: |
-          # Get the project ID of the specified project
-          OWNER="Stardust-Labs-MC"
-          PROJECT_NUMBER=1
-          PROJECT_URL="https://api.github.com/orgs/$OWNER/projects/$PROJECT_NUMBER"
-          PROJECT_RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$PROJECT_URL")
+          PROJECT_URL="https://api.github.com/orgs/Stardust-Labs-MC/projects/1"
+          PROJECT_RESPONSE=$(curl -s -H "Accept: application/vnd.github.inertia-preview+json" "$PROJECT_URL")
           PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq --raw-output '.id')
+          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
 
-          if [ -z "$PROJECT_ID" ]; then
-            echo "Project not found: $OWNER/$PROJECT_NUMBER"
-            exit 1
-          fi
-
-          # Get the issue number
-          ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
-
-          # Find and remove the issue card from the project
-          CARDS_URL="https://api.github.com/projects/columns/cards"
-          CARD_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$CARDS_URL" | jq --arg issue "$ISSUE_NUMBER" '.[] | select(.content_id | contains($issue)) | .id')
+      - name: Find and Remove Issue Card from Project
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_ID: ${{ env.PROJECT_ID }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          CARDS_URL="https://api.github.com/projects/$PROJECT_ID/columns/cards"
+          CARD_ID=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "$CARDS_URL" | jq --arg issue "$ISSUE_NUMBER" '.[] | select(.content_url | contains($issue)) | .id')
 
           if [ -z "$CARD_ID" ]; then
             echo "Issue card not found for issue #$ISSUE_NUMBER"
             exit 1
           fi
 
-          DELETE_URL="https://api.github.com/projects/columns/cards/$CARD_ID"
-          curl -s -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$DELETE_URL"
+          curl -s -X DELETE -H "Authorization: Bearer $GITHUB_TOKEN" "$CARDS_URL/$CARD_ID"
