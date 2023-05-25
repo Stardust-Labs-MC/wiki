@@ -26,8 +26,16 @@ jobs:
             exit 1
           fi
 
-          # Add the issue to the project
+          # Get the issue number
           ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
-          API_URL="https://api.github.com/projects/columns/cards"
-          ISSUE_URL="https://api.github.com/repos/$OWNER/${{ github.repository }}/issues/$ISSUE_NUMBER"
-          curl -s -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" -d "{\"content_id\": $ISSUE_NUMBER, \"content_type\": \"Issue\", \"note\": \"Reopened issue\", \"url\": \"$ISSUE_URL\"}" "$API_URL"
+
+          # Get the column URL associated with the project
+          COLUMN_URL=$(echo "$PROJECT_RESPONSE" | jq --raw-output '.columns[].cards_url')
+
+          if [ -z "$COLUMN_URL" ]; then
+            echo "Column URL not found for project $PROJECT_NUMBER"
+            exit 1
+          fi
+
+          # Add the issue to the project column
+          curl -s -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.inertia-preview+json" -H "Content-Type: application/json" -d "{\"content_id\": $ISSUE_NUMBER, \"content_type\": \"Issue\"}" "$COLUMN_URL"
