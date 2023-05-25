@@ -13,13 +13,13 @@ jobs:
       - name: Assign Milestone
         run: |
           # Get the issue label
-          ISSUE_LABEL=$(jq --raw-output .issue.labels[0].name "$GITHUB_EVENT_PATH")
+          ISSUE_LABEL=$(jq --raw-output '.issue.labels[0].name' "$GITHUB_EVENT_PATH")
 
           # Trim leading and trailing whitespace from the label
           ISSUE_LABEL=$(echo "$ISSUE_LABEL" | awk '{$1=$1};1')
 
           # Get the milestone number based on the label
-          MILESTONE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/milestones" | jq --arg label "$ISSUE_LABEL" ".[] | select(.title == $label) | .number")
+          MILESTONE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/milestones" | jq --argjson label "$ISSUE_LABEL" '.[] | select(.title == $label) | .number')
 
           if [ -z "$MILESTONE" ]; then
             echo "No matching milestone found for label: $ISSUE_LABEL"
