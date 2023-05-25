@@ -22,7 +22,7 @@ jobs:
           PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq --raw-output '.id')
 
           if [ -z "$PROJECT_ID" ]; then
-            echo "Project not found: $OWNER/${{ github.repository }}/$PROJECT_NUMBER"
+            echo "Project not found: $OWNER/$PROJECT_NUMBER"
             exit 1
           fi
 
@@ -31,7 +31,7 @@ jobs:
 
           # Find and remove the issue card from the project
           CARDS_URL="https://api.github.com/projects/columns/cards"
-          CARD_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$CARDS_URL" | jq --arg issue "$ISSUE_NUMBER" '.[] | select(.content_url | contains($issue)) | .id')
+          CARD_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$CARDS_URL" | jq --arg issue "$ISSUE_NUMBER" '.[] | select(.content_id | contains($issue)) | .id')
 
           if [ -z "$CARD_ID" ]; then
             echo "Issue card not found for issue #$ISSUE_NUMBER"
@@ -40,4 +40,3 @@ jobs:
 
           DELETE_URL="https://api.github.com/projects/columns/cards/$CARD_ID"
           curl -s -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$DELETE_URL"
-
