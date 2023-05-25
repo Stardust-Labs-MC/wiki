@@ -1,4 +1,4 @@
-name: Add Issue to Project on Reopen
+name: Add Reopened Issue to Project
 on:
   issues:
     types:
@@ -9,26 +9,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Get Project ID
+        run: |
+          PROJECT_URL="https://api.github.com/orgs/Stardust-Labs-MC/projects/1"
+          PROJECT_RESPONSE=$(curl -s -H "Accept: application/vnd.github.inertia-preview+json" "$PROJECT_URL")
+          PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq --raw-output '.id')
+          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
 
       - name: Add Issue to Project
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_ID: ${{ env.PROJECT_ID }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          # Get the project ID of the specified project
-          OWNER="Stardust-Labs-MC"
-          PROJECT_NUMBER=1
-          PROJECT_URL="https://api.github.com/orgs/$OWNER/projects/$PROJECT_NUMBER"
-          PROJECT_RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$PROJECT_URL")
-          PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq --raw-output '.id')
-
-          if [ -z "$PROJECT_ID" ]; then
-            echo "Project not found: $OWNER/$PROJECT_NUMBER"
-            exit 1
-          fi
-
-          # Get the issue number
-          ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
-
-          # Add the issue to the project
-          API_URL="https://api.github.com/projects/$PROJECT_ID/cards"
-          curl -s -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.inertia-preview+json" -H "Content-Type: application/json" -d "{\"content_id\": $ISSUE_NUMBER, \"content_type\": \"Issue\"}" "$API_URL"
+          API_URL="https://api.github.com/projects/$PROJECT_ID/columns/cards"
+          ISSUE_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER"
+          curl -s -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -d "{\"content_id\": $ISSUE_NUMBER, \"content_type\": \"Issue\", \"note\": \"Reopened issue\", \"url\": \"$ISSUE_URL\"}" "$API_URL"
