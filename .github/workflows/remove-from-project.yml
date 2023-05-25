@@ -16,8 +16,24 @@ jobs:
         run: |
           # Get the project ID of the specified project
           OWNER="Stardust-Labs-MC"
-          PROJECT_ID=1
+          PROJECT_NUMBER=1
+          PROJECT_URL="https://api.github.com/repos/$OWNER/${{ github.repository }}/projects/$PROJECT_NUMBER"
+          PROJECT_RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$PROJECT_URL")
+          PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq --raw-output '.id')
 
-          # Remove the issue from the project
-          API_URL="https://api.github.com/projects/columns/cards/${PROJECT_ID}"
-          curl -s -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL"
+          if [ -z "$PROJECT_ID" ]; then
+            echo "Project not found: $OWNER/${{ github.repository }}/$PROJECT_NUMBER"
+            exit 1
+          fi
+
+          # Remove the issue card from the project
+          ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
+          API_URL="https://api.github.com/projects/columns/cards"
+          CARD_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$OWNER/${{ github.repository }}/issues/$ISSUE_NUMBER/cards" | jq --raw-output '.[0].id')
+
+          if [ -z "$CARD_ID" ]; then
+            echo "Issue card not found for issue #$ISSUE_NUMBER"
+            exit 1
+          fi
+
+          curl -s -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL/$CARD_ID"
