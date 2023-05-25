@@ -1,4 +1,4 @@
-name: Remove issue from project when it's closed
+name: Remove Closed Issue from Project
 on:
   issues:
     types:
@@ -7,23 +7,44 @@ on:
 jobs:
   remove_from_project:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install gh CLI
-        run: |
-          # Install the gh CLI
-          curl -sL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-          sudo apt update
-          sudo apt install gh
-
       - name: Remove issue from project
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: Stardust-Labs-MC
+          PROJECT_NUMBER: 1
         run: |
-          # Extract issue number from event payload
-          ISSUE_NUMBER=$(jq --raw-output .issue.number $GITHUB_EVENT_PATH)
+          ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
 
-          # Remove issue from the project using GitHub CLI
-          gh project card delete --id $ISSUE_NUMBER --confirm
+          GRAPHQL_QUERY=$(jq -n --argjson issueNumber $ISSUE_NUMBER --argjson owner $OWNER --argjson projectNumber $PROJECT_NUMBER \
+            '{
+              "query": "query { repository(owner: $owner, name: \"Wiki\") { issue(number: $issueNumber) { id } } }",
+              "variables": { "owner": $owner, "issueNumber": $issueNumber }
+            }')
+
+          ISSUE_ID=$(curl -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d "$GRAPHQL_QUERY" \
+            https://api.github.com/graphql \
+            | jq -r '.data.repository.issue.id')
+
+          if [ -z "$ISSUE_ID" ]; then
+            echo "Failed to find the issue ID for the closed issue."
+            exit 1
+          fi
+
+          GRAPHQL_QUERY=$(jq -n --arg issueID "$ISSUE_ID" \
+            '{
+              "query": "mutation { deleteProjectCard(input: { cardId: $issueID }) { clientMutationId } }",
+              "variables": { "issueID": $issueID }
+            }')
+
+          curl -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d "$GRAPHQL_QUERY" \
+            https://api.github.com/graphql
