@@ -1,3 +1,4 @@
+name: Assign Milestone on Issue Creation
 on:
   issues:
     types: [labeled]
@@ -32,12 +33,5 @@ jobs:
           esac
 
           # Assign the milestone to the issue
-          echo "::set-output name=milestone::$MILESTONE"
-
-      - name: Set Milestone
-        uses: peter-evans/milestone@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          milestone: ${{ steps.assign_milestone.outputs.milestone }}
-          issue-number: ${{ github.event.issue.number }}
-          repository: ${{ github.repository }}
+          API_URL="https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}"
+          curl -X PATCH -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" -d '{"milestone": "'"$MILESTONE"'"}' "$API_URL"
