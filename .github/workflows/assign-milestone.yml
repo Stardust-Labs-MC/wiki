@@ -18,13 +18,16 @@ jobs:
 
       - name: Assign milestone
         run: |
-          env:
-            labels: ${{ steps.get-labels.outputs.labels }}
-            milestones: ${{ steps.get-milestones.outputs.milestones }}
-          for label in ${{ env.labels }}; do
-            for milestone in ${{ env.milestones }}; do
-              if [[ "$label" == "<span class="math-inline">milestone" \]\]; then
-                gh api -X patch "/repos/Stardust-Labs-MC/wiki/issues/{GITHUB_ISSUE_ID}" -f '{"milestone": "'"$milestone"'"}'
-              fi
+          node -e "
+            env = {
+              labels: require('./labels.txt').map(l => l.name),
+              milestones: require('./milestones.txt').map(m => m.title)
+            }
+            for label in env.labels; do
+              for milestone in env.milestones; do
+                if label == milestone; then
+                  gh api -X patch '/repos/OWNER/REPO/issues/{GITHUB_ISSUE_ID}' -f '{"milestone": "'"$milestone"'"}'
+                fi
+              done
             done
-          done
+          "
