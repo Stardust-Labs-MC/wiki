@@ -26,14 +26,18 @@ jobs:
             exit 1
           fi
 
-          # Remove the issue card from the project
+          # Get the issue number
           ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
-          API_URL="https://api.github.com/projects/columns/cards"
-          CARD_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$OWNER/${{ github.repository }}/issues/$ISSUE_NUMBER/cards" | jq --raw-output '.[0].id')
+
+          # Get the card ID associated with the issue
+          API_URL="https://api.github.com/repos/$OWNER/${{ github.repository }}/projects/$PROJECT_NUMBER/columns"
+          CARDS_URL=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL" | jq --raw-output '.[].cards_url')
+          CARD_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$CARDS_URL" | jq --arg issue "$ISSUE_NUMBER" '.[] | select(.content_url | contains($issue)) | .id')
 
           if [ -z "$CARD_ID" ]; then
             echo "Issue card not found for issue #$ISSUE_NUMBER"
             exit 1
           fi
 
-          curl -s -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL/$CARD_ID"
+          # Remove the issue card from the project
+          curl -s -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$CARDS_URL/$CARD_ID"
