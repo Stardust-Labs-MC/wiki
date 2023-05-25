@@ -23,20 +23,10 @@ jobs:
 
           if [ -z "$PROJECT_ID" ]; then
             echo "Project not found: $OWNER/${{ github.repository }}/$PROJECT_NUMBER"
-            exit 1
+            exit 0
           fi
 
-          # Get the column ID of the "Todo" column in the project
-          COLUMN_URL="https://api.github.com/projects/$PROJECT_ID/columns"
-          COLUMN_RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$COLUMN_URL")
-          COLUMN_ID=$(echo "$COLUMN_RESPONSE" | jq --arg column_name "Todo" '.[] | select(.name == $column_name) | .id')
-
-          if [ -z "$COLUMN_ID" ]; then
-            echo "Column not found: Todo"
-            exit 1
-          fi
-
-          # Add the issue to the project column
-          API_URL="https://api.github.com/projects/columns/$COLUMN_ID/cards"
+          # Add the issue to the project
+          API_URL="https://api.github.com/projects/$PROJECT_ID/cards"
           ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
           curl -s -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" -d "{\"content_id\": $ISSUE_NUMBER, \"content_type\": \"Issue\"}" "$API_URL"
