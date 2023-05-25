@@ -5,46 +5,17 @@ on:
       - closed
 
 jobs:
-  remove_from_project:
+  remove-from-project:
+    name: Remove issue from project
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Remove issue from project
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OWNER: Stardust-Labs-MC
-          PROJECT_NUMBER: 1
-        run: |
-          ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
-
-          GRAPHQL_QUERY=$(jq -n --argjson issueNumber $ISSUE_NUMBER --argjson owner $OWNER --argjson projectNumber $PROJECT_NUMBER \
-            '{
-              "query": "query { repository(owner: $owner, name: \"Wiki\") { issue(number: $issueNumber) { id } } }",
-              "variables": { "owner": $owner, "issueNumber": $issueNumber }
-            }')
-
-          ISSUE_ID=$(curl -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            -d "$GRAPHQL_QUERY" \
-            https://api.github.com/graphql \
-            | jq -r '.data.repository.issue.id')
-
-          if [ -z "$ISSUE_ID" ]; then
-            echo "Failed to find the issue ID for the closed issue."
-            exit 1
-          fi
-
-          GRAPHQL_QUERY=$(jq -n --arg issueID "$ISSUE_ID" \
-            '{
-              "query": "mutation { deleteProjectCard(input: { cardId: $issueID }) { clientMutationId } }",
-              "variables": { "issueID": $issueID }
-            }')
-
-          curl -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            -d "$GRAPHQL_QUERY" \
-            https://api.github.com/graphql
+        uses: monry/actions-delete-issue-from-project@v2
+        with:
+          github-token: ${{ secrets.PROJECT_PAT }}
+          project-owner: 'Stardust-Labs-MC'
+          project-number: 1
+          issue-repository: 'Stardust-Labs-MC/wiki'
+          issue-number: ${{ github.event.issue.number }}
