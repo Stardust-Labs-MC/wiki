@@ -2,32 +2,42 @@ on:
   issues:
     types: [labeled]
 jobs:
-  assign-milestone:
+  assign_milestone:
     runs-on: ubuntu-latest
-      
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v2
 
-      - name: Get labels
+      - name: Assign Milestone
         run: |
-          gh api -q "/repos/Stardust-Labs-MC/wiki/issues/${GITHUB_ISSUE_ID}/labels" | jq -r '.[].name' > labels.txt
+          # Get the issue label
+          ISSUE_LABEL=$(jq --raw-output .issue.labels[0].name "$GITHUB_EVENT_PATH")
 
-      - name: Get milestones
-        run: |
-          gh api -q "/repos/Stardust-Labs-MC/wiki/milestones" | jq -r '.[].title' > milestones.txt
+          # Set the milestone based on the label
+          case "$ISSUE_LABEL" in
+            "Label1")
+              MILESTONE="Milestone1"
+              ;;
+            "Label2")
+              MILESTONE="Milestone2"
+              ;;
+            # Add more label-milestone mappings as needed
 
-      - name: Assign milestone
-        run: |
-          node -e "
-            env = {
-              labels: require('./labels.txt').map(l => l.name),
-              milestones: require('./milestones.txt').map(m => m.title)
-            }
-          "
-          for label in env.labels; do
-            for milestone in env.milestones; do
-              if label == milestone; then
-                gh api -X patch '/repos/OWNER/REPO/issues/{GITHUB_ISSUE_ID}' -f '{"milestone": "'"$milestone"'"}'
-              fi
-            done
-          done
+            # If no label-matching condition is found, exit without assigning a milestone
+            *)
+              echo "No matching milestone found for label: $ISSUE_LABEL"
+              exit 0
+              ;;
+          esac
+
+          # Assign the milestone to the issue
+          echo "::set-output name=milestone::$MILESTONE"
+
+      - name: Set Milestone
+        uses: peter-evans/milestone@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          milestone: ${{ steps.assign_milestone.outputs.milestone }}
+          issue-number: ${{ github.event.issue.number }}
+          repository: ${{ github.repository }}
