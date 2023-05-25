@@ -1,25 +1,30 @@
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
 jobs:
   assign-milestone:
     runs-on: ubuntu-latest
+      
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2-node16
 
-    - name: Get labels
-      run: |
-        echo "::set-output name=labels::\(gh api \-q "/repos/Stardust-Labs-MC/wiki/issues/{GITHUB_ISSUE_ID}/labels" | jq -r '.[].name')"
+      - name: Get labels
+        run: |
+          gh api -q "/repos/Stardust-Labs-MC/wiki/issues/${GITHUB_ISSUE_ID}/labels" | jq -r '.[].name' > labels.txt
 
-    - name: Get milestones
-      run: |
-        echo "::set-output name=milestones::\(gh api \-q "/repos/Stardust-Labs-MC/wiki/milestones" \| jq \-r \'\.\[\]\.title\'\)"
-        
-    - name: Assign milestone
-      run: |
-        for label in "{{ steps.get-labels.outputs.labels }}"; do
-          for milestone in "${{ steps.get-milestones.outputs.milestones }}"; do
-            if [[ "$label" == "milestone"]];thenghapi−Xpatch"/repos/Stardust-Labs-MC/wiki/issues/{GITHUB_ISSUE_ID}" -f '{"milestone": "'"$milestone"'"}'
-            fi
+      - name: Get milestones
+        run: |
+          gh api -q "/repos/Stardust-Labs-MC/wiki/milestones" | jq -r '.[].title' > milestones.txt
+
+      - name: Assign milestone
+        run: |
+          env:
+            labels: ${{ steps.get-labels.outputs.labels }}
+            milestones: ${{ steps.get-milestones.outputs.milestones }}
+          for label in ${{ env.labels }}; do
+            for milestone in ${{ env.milestones }}; do
+              if [[ "$label" == "<span class="math-inline">milestone" \]\]; then
+                gh api -X patch "/repos/Stardust-Labs-MC/wiki/issues/{GITHUB_ISSUE_ID}" -f '{"milestone": "'"$milestone"'"}'
+              fi
+            done
           done
-        done
