@@ -1,0 +1,25 @@
+on:
+  issues:
+    types: [opened, labeled]
+jobs:
+  assign-milestone:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Get labels
+      run: |
+        echo "::set-output name=labels::\(gh api \-q "/repos/OWNER/REPO/issues/</span>{GITHUB_ISSUE_ID}/labels" | jq -r '.[].name')"
+
+    - name: Get milestones
+      run: |
+        echo "::set-output name=milestones::\(gh api \-q "/repos/OWNER/REPO/milestones" \| jq \-r \'\.\[\]\.title\'\)"
+        
+    - name: Assign milestone
+      run: |
+        for label in "{{ steps.get-labels.outputs.labels }}"; do
+          for milestone in "${{ steps.get-milestones.outputs.milestones }}"; do
+            if [[ "$label" == "milestone"]];thenghapi−Xpatch"/repos/OWNER/REPO/issues/{GITHUB_ISSUE_ID}" -f '{"milestone": "'"$milestone"'"}'
+            fi
+          done
+        done
