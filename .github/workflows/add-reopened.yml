@@ -5,31 +5,11 @@ on:
       - reopened
 
 jobs:
-  add_to_project:
+  add-to-project:
+    name: Add issue to project
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Add issue to project
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OWNER: Stardust-Labs-MC
-          PROJECT_NUMBER: 1
-        run: |
-          ISSUE_NUMBER=$(jq --raw-output .issue.number "$GITHUB_EVENT_PATH")
-          ISSUE_TITLE=$(jq --raw-output .issue.title "$GITHUB_EVENT_PATH")
-          ISSUE_BODY=$(jq --raw-output .issue.body "$GITHUB_EVENT_PATH")
-
-          GRAPHQL_QUERY=$(jq -n --argjson issueNumber $ISSUE_NUMBER --argjson projectNumber $PROJECT_NUMBER --arg owner $OWNER --arg issueTitle "$ISSUE_TITLE" \
-            --arg issueBody "$ISSUE_BODY" \
-            '{
-              "query": "mutation { createProjectCard(input: { contentId: $issueNumber, projectNumber: $projectNumber, clientMutationId: $issueTitle }) { clientMutationId } }",
-              "variables": { "issueNumber": $issueNumber, "projectNumber": $projectNumber, "issueTitle": $issueTitle }
-            }')
-
-          curl -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            -d "$GRAPHQL_QUERY" \
-            https://api.github.com/graphql
+      - uses: actions/add-to-project@RELEASE_VERSION
+        with:
+          project-url: https://github.com/orgs/Stardust-Labs-MC/projects/1
+          github-token: ${{ secrets.PROJECT_PAT }}
