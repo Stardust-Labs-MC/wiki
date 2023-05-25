@@ -1,33 +1,45 @@
-name: Remove Closed Issue from Project
+name: Remove from Project
 on:
-  issues:
+  pull_request:
     types:
       - closed
 
 jobs:
   remove_from_project:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Get Project ID
-        run: |
-          PROJECT_URL="https://api.github.com/orgs/Stardust-Labs-MC/projects/1"
-          PROJECT_RESPONSE=$(curl -s -H "Accept: application/vnd.github.inertia-preview+json" "$PROJECT_URL")
-          PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq --raw-output '.id')
-          echo "PROJECT_ID=$PROJECT_ID" >> $GITHUB_ENV
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_PEM }}
 
-      - name: Find and Remove Issue Card from Project
+      - name: Get project data
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PROJECT_ID: ${{ env.PROJECT_ID }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          ORGANIZATION: Stardust-Labs-MC
+          PROJECT_NUMBER: 1
         run: |
-          CARDS_URL="https://api.github.com/projects/$PROJECT_ID/columns/cards"
-          CARD_ID=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "$CARDS_URL" | jq --arg issue "$ISSUE_NUMBER" '.[] | select(.content_url | contains($issue)) | .id')
+          gh api graphql -f query='
+            query($org: String!, $number: Int!) {
+              organization(login: $org){
+                projectV2(number: $number) {
+                  id
+                }
+              }
+            }' -f org=$ORGANIZATION -F number=$PROJECT_NUMBER > project_data.json
 
-          if [ -z "$CARD_ID" ]; then
-            echo "Issue card not found for issue #$ISSUE_NUMBER"
-            exit 1
-          fi
+          echo 'PROJECT_ID='$(jq '.data.organization.projectV2.id' project_data.json) >> $GITHUB_ENV
 
-          curl -s -X DELETE -H "Authorization: Bearer $GITHUB_TOKEN" "$CARDS_URL/$CARD_ID"
+      - name: Remove PR from project
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          PR_ID: ${{ github.event.pull_request.node_id }}
+        run: |
+          gh api graphql -f query='
+            mutation($project: ID!, $pr: ID!) {
+              removeProjectV2Item(input: {projectId: $project, itemId: $pr}) {
+                clientMutationId
+              }
+            }' -f project=$PROJECT_ID -f pr=$PR_ID --silent
