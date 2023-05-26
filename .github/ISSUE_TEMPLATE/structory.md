@@ -1,7 +1,7 @@
 ---
 name: Structory
-about: Create a Template issue
+about: Create a Structory issue
 title: ''
-labels: Template
+labels: Structory
 assignees: ''
 ---
